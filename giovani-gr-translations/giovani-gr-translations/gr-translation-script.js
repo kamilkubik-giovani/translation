@@ -10,6 +10,7 @@
 
   const translations = {
     "My personal details": "Τα προσωπικά μου στοιχεία",
+    "Doporučené produkty": "Προτεινόμενα προϊόντα",
     "My orders": "Οι παραγγελίες μου",
     "My invoices": "Τα τιμολόγιά μου",
     "736 ratings": "736 αξιολογήσεις",
