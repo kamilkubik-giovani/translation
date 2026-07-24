@@ -11,6 +11,7 @@
   const translations = {
     "My personal details": "Mano asmeniniai duomenys",
     "My orders": "Mano užsakymai",
+    "I do not consent to receiving request to review the online store and its products": "Nesutinku gauti prašymų įvertinti internetinę parduotuvę ir jos produktus.",
     "My invoices": "Mano sąskaitos faktūros",
     "736 ratings": "736 įvertinimai",
     "My proforma invoices": "Mano išankstinės sąskaitos",
