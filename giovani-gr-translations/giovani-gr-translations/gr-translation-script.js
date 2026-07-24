@@ -11,6 +11,7 @@
   const translations = {
     "My personal details": "Τα προσωπικά μου στοιχεία",
     "Doporučené produkty": "Προτεινόμενα προϊόντα",
+    "Recommendet products": "Προτεινόμενα προϊόντα",
     "I have a discount coupon": "Έχω εκπτωτικό κουπόνι",
     "My orders": "Οι παραγγελίες μου",
     "My invoices": "Τα τιμολόγιά μου",
