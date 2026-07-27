@@ -27,7 +27,10 @@
       'Tai el. pašto adresas, kuris buvo naudojamas pateikiant užsakymą.',
 
     'View order':
-      'Peržiūrėti užsakymą'
+      'Peržiūrėti užsakymą',
+
+    'I do not consent to receiving request to review the online store and its products':
+      'Atsisakau gauti prašymus įvertinti internetinę parduotuvę ir jos produktus'
   };
 
   const placeholderTranslations = {
