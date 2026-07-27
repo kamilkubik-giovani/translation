@@ -261,6 +261,13 @@
     "save changes": "išsaugoti pakeitimus",
     "close": "uždaryti",
     "yes": "taip",
+      "My order": "Mano užsakymas",
+  "View order details": "Peržiūrėti užsakymo informaciją",
+  "To view your order details, enter your order number and the email address used during checkout.": "Norėdami peržiūrėti užsakymo informaciją, įveskite užsakymo numerį ir el. pašto adresą, kurį naudojote pateikdami užsakymą.",
+"Order number":"Užsakymo numeris",
+"Your email": "Jūsų el. pašto adresas",
+"This is the email address used for the order.":"Tai el. pašto adresas, kuris buvo naudojamas pateikiant užsakymą.",
+"View order":"Peržiūrėti užsakymą",
     "no": "ne"
   };
 
