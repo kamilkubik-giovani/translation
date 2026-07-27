@@ -9,7 +9,8 @@
   }
 
   const translations = {
-    'My order': 'Mano užsakymas',
+    'My order':
+      'Mano užsakymas',
 
     'View order details':
       'Peržiūrėti užsakymo informaciją',
@@ -38,11 +39,79 @@
       'pvz., john.doe@example.com'
   };
 
+  const pageMetadata = {
+    title:
+      'Mano užsakymo informacija | Giovani',
+
+    description:
+      'Peržiūrėkite savo Giovani užsakymo informaciją įvedę užsakymo numerį ir užsakymo metu naudotą el. pašto adresą.'
+  };
+
   function cleanText(value) {
     return String(value || '')
       .replace(/\u00a0/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
+  }
+
+  function isMyOrderPage() {
+    const pathname = window.location.pathname.replace(/\/+$/, '');
+
+    return pathname === '/my-order';
+  }
+
+  function setMetaContent(selector, attributeName, attributeValue, content) {
+    let element = document.head.querySelector(selector);
+
+    if (!element) {
+      element = document.createElement('meta');
+      element.setAttribute(attributeName, attributeValue);
+      document.head.appendChild(element);
+    }
+
+    element.setAttribute('content', content);
+  }
+
+  function updatePageMetadata() {
+    if (!isMyOrderPage()) return;
+    if (!document.head) return;
+
+    document.title = pageMetadata.title;
+
+    setMetaContent(
+      'meta[name="description"]',
+      'name',
+      'description',
+      pageMetadata.description
+    );
+
+    setMetaContent(
+      'meta[property="og:title"]',
+      'property',
+      'og:title',
+      pageMetadata.title
+    );
+
+    setMetaContent(
+      'meta[property="og:description"]',
+      'property',
+      'og:description',
+      pageMetadata.description
+    );
+
+    setMetaContent(
+      'meta[name="twitter:title"]',
+      'name',
+      'twitter:title',
+      pageMetadata.title
+    );
+
+    setMetaContent(
+      'meta[name="twitter:description"]',
+      'name',
+      'twitter:description',
+      pageMetadata.description
+    );
   }
 
   function translateTextNodes(root) {
@@ -106,14 +175,51 @@
 
         if (translated) {
           element.value = translated;
-          element.setAttribute('value', translated);
+          element.setAttribute(
+            'value',
+            translated
+          );
         }
+      });
+
+    root
+      .querySelectorAll('[title], [aria-label]')
+      .forEach(function (element) {
+        ['title', 'aria-label'].forEach(function (attribute) {
+          if (!element.hasAttribute(attribute)) return;
+
+          const original = cleanText(
+            element.getAttribute(attribute)
+          );
+
+          const translated = translations[original];
+
+          if (translated) {
+            element.setAttribute(
+              attribute,
+              translated
+            );
+          }
+        });
       });
   }
 
   function translateRoot(root) {
     translateTextNodes(root);
     translateAttributes(root);
+  }
+
+  function translateNestedShadowRoots(root) {
+    if (!root || !root.querySelectorAll) return;
+
+    root
+      .querySelectorAll('*')
+      .forEach(function (host) {
+        if (!host.shadowRoot) return;
+
+        translateRoot(host.shadowRoot);
+        translateNestedShadowRoots(host.shadowRoot);
+      });
   }
 
   function translateAllShadowRoots() {
@@ -123,25 +229,20 @@
         if (!host.shadowRoot) return;
 
         translateRoot(host.shadowRoot);
-
-        host.shadowRoot
-          .querySelectorAll('*')
-          .forEach(function (nestedHost) {
-            if (nestedHost.shadowRoot) {
-              translateRoot(nestedHost.shadowRoot);
-            }
-          });
+        translateNestedShadowRoots(host.shadowRoot);
       });
   }
 
   function translateEverything() {
     if (!document.body) return;
 
+    updatePageMetadata();
     translateRoot(document.body);
     translateAllShadowRoots();
   }
 
   function start() {
+    updatePageMetadata();
     translateEverything();
 
     const observer = new MutationObserver(
@@ -157,13 +258,41 @@
       attributes: true,
       attributeFilter: [
         'placeholder',
-        'value'
+        'value',
+        'title',
+        'aria-label'
       ]
+    });
+
+    [
+      100,
+      300,
+      500,
+      1000,
+      1500,
+      2500,
+      4000,
+      7000
+    ].forEach(function (delay) {
+      window.setTimeout(
+        translateEverything,
+        delay
+      );
     });
 
     window.setInterval(
       translateEverything,
       500
+    );
+
+    window.addEventListener(
+      'load',
+      translateEverything
+    );
+
+    window.addEventListener(
+      'pageshow',
+      translateEverything
     );
   }
 
