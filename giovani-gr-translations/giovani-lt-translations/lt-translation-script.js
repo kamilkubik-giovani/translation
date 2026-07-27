@@ -267,12 +267,14 @@
     "My order": "Mano užsakymas",
     "View order details": "Peržiūrėti užsakymo informaciją",
     "To view your order details, enter your order number and the email address used during checkout.": "Norėdami peržiūrėti užsakymo informaciją, įveskite užsakymo numerį ir el. pašto adresą, kurį naudojote pateikdami užsakymą.",
-    "Order number*": "Užsakymo numeris*",
     "Order number": "Užsakymo numeris",
+    "Order number*": "Užsakymo numeris*",
+    "Order number *": "Užsakymo numeris *",
     "e.g. 123456": "pvz., 123456",
-    "Your email*": "Jūsų el. paštas*",
     "Your email": "Jūsų el. paštas",
-    "e.g. john.doe@example.com": "pvz., jonas.jonaitis@example.com",
+    "Your email*": "Jūsų el. paštas*",
+    "Your email *": "Jūsų el. paštas *",
+    "e.g. john.doe@example.com": "pvz., john.doe@example.com",
     "This is the email address used for the order.": "Tai el. pašto adresas, kuris buvo naudojamas pateikiant užsakymą.",
     "View order": "Peržiūrėti užsakymą"
   };
@@ -281,21 +283,25 @@
     'placeholder',
     'title',
     'aria-label',
-    'data-title'
+    'data-title',
+    'data-label',
+    'alt'
   ];
 
   const SKIP_TAGS = new Set([
     'SCRIPT',
     'STYLE',
     'NOSCRIPT',
-    'IFRAME',
     'CODE',
     'PRE'
   ]);
 
+  const observedRoots = new WeakSet();
+
   function normalize(value) {
     return String(value || '')
       .replace(/\u00a0/g, ' ')
+      .replace(/[\r\n\t]+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
       .toLowerCase();
@@ -310,6 +316,9 @@
 
   function translateString(value) {
     const key = normalize(value);
+
+    if (!key) return null;
+
     return normalizedTranslations.get(key) || null;
   }
 
@@ -331,6 +340,7 @@
 
   function translateElementAttributes(element) {
     if (!element || element.nodeType !== Node.ELEMENT_NODE) return;
+    if (SKIP_TAGS.has(element.tagName)) return;
 
     for (const attribute of ATTRIBUTES) {
       if (!element.hasAttribute(attribute)) continue;
@@ -343,12 +353,7 @@
       }
     }
 
-    if (
-      (element.tagName === 'INPUT' ||
-        element.tagName === 'BUTTON' ||
-        element.tagName === 'OPTION') &&
-      element.hasAttribute('value')
-    ) {
+    if (element.hasAttribute('value')) {
       const original = element.getAttribute('value');
       const translated = translateString(original);
 
@@ -356,10 +361,8 @@
         element.setAttribute('value', translated);
 
         if (
-          element.tagName === 'INPUT' &&
-          ['button', 'submit', 'reset'].includes(
-            String(element.type || '').toLowerCase()
-          )
+          element.tagName === 'INPUT' ||
+          element.tagName === 'BUTTON'
         ) {
           element.value = translated;
         }
@@ -377,7 +380,8 @@
 
     if (
       root.nodeType !== Node.ELEMENT_NODE &&
-      root.nodeType !== Node.DOCUMENT_FRAGMENT_NODE
+      root.nodeType !== Node.DOCUMENT_FRAGMENT_NODE &&
+      root.nodeType !== Node.DOCUMENT_NODE
     ) {
       return;
     }
@@ -391,6 +395,15 @@
 
     if (root.nodeType === Node.ELEMENT_NODE) {
       translateElementAttributes(root);
+
+      if (root.shadowRoot) {
+        translateSubtree(root.shadowRoot);
+        observeRoot(root.shadowRoot);
+      }
+
+      if (root.tagName === 'IFRAME') {
+        translateIframe(root);
+      }
     }
 
     const walker = document.createTreeWalker(
@@ -415,16 +428,63 @@
     while ((node = walker.nextNode())) {
       if (node.nodeType === Node.TEXT_NODE) {
         translateTextNode(node);
-      } else {
-        translateElementAttributes(node);
+        continue;
+      }
+
+      translateElementAttributes(node);
+
+      if (node.shadowRoot) {
+        translateSubtree(node.shadowRoot);
+        observeRoot(node.shadowRoot);
+      }
+
+      if (node.tagName === 'IFRAME') {
+        translateIframe(node);
       }
     }
   }
 
-  function hideUndefined(root) {
-    const scope = root?.querySelectorAll ? root : document;
+  function translateIframe(iframe) {
+    if (!iframe) return;
 
-    scope.querySelectorAll('*').forEach((element) => {
+    try {
+      const iframeDocument =
+        iframe.contentDocument ||
+        iframe.contentWindow?.document;
+
+      if (!iframeDocument?.body) return;
+
+      translateSubtree(iframeDocument.body);
+      observeRoot(iframeDocument.body);
+      translateAllShadowRoots(iframeDocument);
+    } catch (error) {
+      /*
+       * Iframe z inej domény nemožno upravovať.
+       * Chybu ignorujeme, aby skript pokračoval ďalej.
+       */
+    }
+  }
+
+  function translateAllShadowRoots(root = document) {
+    if (!root?.querySelectorAll) return;
+
+    root.querySelectorAll('*').forEach((element) => {
+      if (element.shadowRoot) {
+        translateSubtree(element.shadowRoot);
+        observeRoot(element.shadowRoot);
+        translateAllShadowRoots(element.shadowRoot);
+      }
+
+      if (element.tagName === 'IFRAME') {
+        translateIframe(element);
+      }
+    });
+  }
+
+  function hideUndefined(root = document) {
+    if (!root?.querySelectorAll) return;
+
+    root.querySelectorAll('*').forEach((element) => {
       if (
         element.children.length === 0 &&
         normalize(element.textContent) === 'undefined'
@@ -434,28 +494,35 @@
     });
   }
 
-  function start() {
-    if (!document.body) return;
+  function observeRoot(root) {
+    if (!root || observedRoots.has(root)) return;
 
-    translateSubtree(document.body);
-    hideUndefined(document.body);
+    observedRoots.add(root);
 
     let scheduled = false;
     const pendingNodes = new Set();
 
-    const flush = () => {
+    function flush() {
       scheduled = false;
 
       pendingNodes.forEach((node) => {
         translateSubtree(node);
+
+        if (
+          node.nodeType === Node.ELEMENT_NODE ||
+          node.nodeType === Node.DOCUMENT_FRAGMENT_NODE ||
+          node.nodeType === Node.DOCUMENT_NODE
+        ) {
+          translateAllShadowRoots(node);
+        }
       });
 
       pendingNodes.clear();
-      hideUndefined(document.body);
-    };
+      hideUndefined(root);
+    }
 
     const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
+      mutations.forEach((mutation) => {
         if (mutation.type === 'childList') {
           mutation.addedNodes.forEach((node) => {
             pendingNodes.add(node);
@@ -469,7 +536,7 @@
         if (mutation.type === 'attributes') {
           pendingNodes.add(mutation.target);
         }
-      }
+      });
 
       if (!scheduled) {
         scheduled = true;
@@ -477,7 +544,7 @@
       }
     });
 
-    observer.observe(document.body, {
+    observer.observe(root, {
       childList: true,
       subtree: true,
       characterData: true,
@@ -487,18 +554,97 @@
         'value'
       ]
     });
+  }
 
-    window.setTimeout(() => {
-      translateSubtree(document.body);
-    }, 500);
+  function translatePage() {
+    if (!document.body) return;
 
-    window.setTimeout(() => {
-      translateSubtree(document.body);
-    }, 1500);
+    translateSubtree(document.body);
+    translateAllShadowRoots(document);
+    observeRoot(document.body);
+    hideUndefined(document);
 
-    window.setTimeout(() => {
-      translateSubtree(document.body);
-    }, 3000);
+    document.querySelectorAll('iframe').forEach((iframe) => {
+      if (!iframe.dataset.giovaniTranslationListener) {
+        iframe.dataset.giovaniTranslationListener = '1';
+
+        iframe.addEventListener('load', () => {
+          translateIframe(iframe);
+        });
+      }
+
+      translateIframe(iframe);
+    });
+  }
+
+  function patchAttachShadow() {
+    if (
+      !window.Element ||
+      !Element.prototype.attachShadow ||
+      Element.prototype.attachShadow.__giovaniTranslationPatched
+    ) {
+      return;
+    }
+
+    const originalAttachShadow = Element.prototype.attachShadow;
+
+    function patchedAttachShadow(options) {
+      const shadowRoot = originalAttachShadow.call(this, options);
+
+      window.setTimeout(() => {
+        translateSubtree(shadowRoot);
+        observeRoot(shadowRoot);
+      }, 0);
+
+      return shadowRoot;
+    }
+
+    patchedAttachShadow.__giovaniTranslationPatched = true;
+    Element.prototype.attachShadow = patchedAttachShadow;
+  }
+
+  function start() {
+    patchAttachShadow();
+    translatePage();
+
+    const delays = [
+      100,
+      250,
+      500,
+      750,
+      1000,
+      1500,
+      2000,
+      3000,
+      5000,
+      8000,
+      12000
+    ];
+
+    delays.forEach((delay) => {
+      window.setTimeout(translatePage, delay);
+    });
+
+    let attempts = 0;
+
+    const interval = window.setInterval(() => {
+      translatePage();
+      attempts += 1;
+
+      if (attempts >= 30) {
+        window.clearInterval(interval);
+      }
+    }, 1000);
+
+    window.addEventListener('load', translatePage);
+
+    window.addEventListener('pageshow', translatePage);
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        translatePage();
+      }
+    });
   }
 
   if (document.readyState === 'loading') {
