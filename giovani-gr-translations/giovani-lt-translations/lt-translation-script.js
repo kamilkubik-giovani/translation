@@ -261,18 +261,37 @@
     "save changes": "išsaugoti pakeitimus",
     "close": "uždaryti",
     "yes": "taip",
-      "My order": "Mano užsakymas",
-  "View order details": "Peržiūrėti užsakymo informaciją",
-  "To view your order details, enter your order number and the email address used during checkout.": "Norėdami peržiūrėti užsakymo informaciją, įveskite užsakymo numerį ir el. pašto adresą, kurį naudojote pateikdami užsakymą.",
-"Order number":"Užsakymo numeris",
-"Your email": "Jūsų el. pašto adresas",
-"This is the email address used for the order.":"Tai el. pašto adresas, kuris buvo naudojamas pateikiant užsakymą.",
-"View order":"Peržiūrėti užsakymą",
-    "no": "ne"
+    "no": "ne",
+
+    "MY ORDER:": "MANO UŽSAKYMAS:",
+    "My order": "Mano užsakymas",
+    "View order details": "Peržiūrėti užsakymo informaciją",
+    "To view your order details, enter your order number and the email address used during checkout.": "Norėdami peržiūrėti užsakymo informaciją, įveskite užsakymo numerį ir el. pašto adresą, kurį naudojote pateikdami užsakymą.",
+    "Order number*": "Užsakymo numeris*",
+    "Order number": "Užsakymo numeris",
+    "e.g. 123456": "pvz., 123456",
+    "Your email*": "Jūsų el. paštas*",
+    "Your email": "Jūsų el. paštas",
+    "e.g. john.doe@example.com": "pvz., jonas.jonaitis@example.com",
+    "This is the email address used for the order.": "Tai el. pašto adresas, kuris buvo naudojamas pateikiant užsakymą.",
+    "View order": "Peržiūrėti užsakymą"
   };
 
-  const ATTRIBUTES = ['placeholder', 'title', 'aria-label', 'data-title'];
-  const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'IFRAME', 'CODE', 'PRE']);
+  const ATTRIBUTES = [
+    'placeholder',
+    'title',
+    'aria-label',
+    'data-title'
+  ];
+
+  const SKIP_TAGS = new Set([
+    'SCRIPT',
+    'STYLE',
+    'NOSCRIPT',
+    'IFRAME',
+    'CODE',
+    'PRE'
+  ]);
 
   function normalize(value) {
     return String(value || '')
@@ -283,7 +302,10 @@
   }
 
   const normalizedTranslations = new Map(
-    Object.entries(translations).map(([source, target]) => [normalize(source), target])
+    Object.entries(translations).map(([source, target]) => [
+      normalize(source),
+      target
+    ])
   );
 
   function translateString(value) {
@@ -293,14 +315,17 @@
 
   function translateTextNode(node) {
     if (!node || node.nodeType !== Node.TEXT_NODE) return;
-    if (!node.parentElement || SKIP_TAGS.has(node.parentElement.tagName)) return;
+    if (!node.parentElement) return;
+    if (SKIP_TAGS.has(node.parentElement.tagName)) return;
 
     const original = node.nodeValue;
     const translated = translateString(original);
+
     if (!translated) return;
 
     const leading = original.match(/^\s*/)?.[0] || '';
     const trailing = original.match(/\s*$/)?.[0] || '';
+
     node.nodeValue = leading + translated + trailing;
   }
 
@@ -309,15 +334,36 @@
 
     for (const attribute of ATTRIBUTES) {
       if (!element.hasAttribute(attribute)) continue;
+
       const original = element.getAttribute(attribute);
       const translated = translateString(original);
-      if (translated) element.setAttribute(attribute, translated);
+
+      if (translated) {
+        element.setAttribute(attribute, translated);
+      }
     }
 
-    if ((element.tagName === 'INPUT' || element.tagName === 'BUTTON') && element.hasAttribute('value')) {
+    if (
+      (element.tagName === 'INPUT' ||
+        element.tagName === 'BUTTON' ||
+        element.tagName === 'OPTION') &&
+      element.hasAttribute('value')
+    ) {
       const original = element.getAttribute('value');
       const translated = translateString(original);
-      if (translated) element.setAttribute('value', translated);
+
+      if (translated) {
+        element.setAttribute('value', translated);
+
+        if (
+          element.tagName === 'INPUT' &&
+          ['button', 'submit', 'reset'].includes(
+            String(element.type || '').toLowerCase()
+          )
+        ) {
+          element.value = translated;
+        }
+      }
     }
   }
 
@@ -329,41 +375,68 @@
       return;
     }
 
-    if (root.nodeType !== Node.ELEMENT_NODE && root.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) return;
-    if (root.nodeType === Node.ELEMENT_NODE && SKIP_TAGS.has(root.tagName)) return;
+    if (
+      root.nodeType !== Node.ELEMENT_NODE &&
+      root.nodeType !== Node.DOCUMENT_FRAGMENT_NODE
+    ) {
+      return;
+    }
 
-    if (root.nodeType === Node.ELEMENT_NODE) translateElementAttributes(root);
+    if (
+      root.nodeType === Node.ELEMENT_NODE &&
+      SKIP_TAGS.has(root.tagName)
+    ) {
+      return;
+    }
+
+    if (root.nodeType === Node.ELEMENT_NODE) {
+      translateElementAttributes(root);
+    }
 
     const walker = document.createTreeWalker(
       root,
       NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
       {
         acceptNode(node) {
-          if (node.nodeType === Node.ELEMENT_NODE && SKIP_TAGS.has(node.tagName)) {
+          if (
+            node.nodeType === Node.ELEMENT_NODE &&
+            SKIP_TAGS.has(node.tagName)
+          ) {
             return NodeFilter.FILTER_REJECT;
           }
+
           return NodeFilter.FILTER_ACCEPT;
         }
       }
     );
 
     let node;
+
     while ((node = walker.nextNode())) {
-      if (node.nodeType === Node.TEXT_NODE) translateTextNode(node);
-      else translateElementAttributes(node);
+      if (node.nodeType === Node.TEXT_NODE) {
+        translateTextNode(node);
+      } else {
+        translateElementAttributes(node);
+      }
     }
   }
 
   function hideUndefined(root) {
     const scope = root?.querySelectorAll ? root : document;
+
     scope.querySelectorAll('*').forEach((element) => {
-      if (element.children.length === 0 && normalize(element.textContent) === 'undefined') {
+      if (
+        element.children.length === 0 &&
+        normalize(element.textContent) === 'undefined'
+      ) {
         element.style.display = 'none';
       }
     });
   }
 
   function start() {
+    if (!document.body) return;
+
     translateSubtree(document.body);
     hideUndefined(document.body);
 
@@ -372,16 +445,30 @@
 
     const flush = () => {
       scheduled = false;
-      pendingNodes.forEach((node) => translateSubtree(node));
+
+      pendingNodes.forEach((node) => {
+        translateSubtree(node);
+      });
+
       pendingNodes.clear();
       hideUndefined(document.body);
     };
 
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
-        mutation.addedNodes.forEach((node) => pendingNodes.add(node));
-        if (mutation.type === 'characterData') pendingNodes.add(mutation.target);
-        if (mutation.type === 'attributes') pendingNodes.add(mutation.target);
+        if (mutation.type === 'childList') {
+          mutation.addedNodes.forEach((node) => {
+            pendingNodes.add(node);
+          });
+        }
+
+        if (mutation.type === 'characterData') {
+          pendingNodes.add(mutation.target);
+        }
+
+        if (mutation.type === 'attributes') {
+          pendingNodes.add(mutation.target);
+        }
       }
 
       if (!scheduled) {
@@ -395,12 +482,31 @@
       subtree: true,
       characterData: true,
       attributes: true,
-      attributeFilter: [...ATTRIBUTES, 'value']
+      attributeFilter: [
+        ...ATTRIBUTES,
+        'value'
+      ]
     });
+
+    window.setTimeout(() => {
+      translateSubtree(document.body);
+    }, 500);
+
+    window.setTimeout(() => {
+      translateSubtree(document.body);
+    }, 1500);
+
+    window.setTimeout(() => {
+      translateSubtree(document.body);
+    }, 3000);
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', start, { once: true });
+    document.addEventListener(
+      'DOMContentLoaded',
+      start,
+      { once: true }
+    );
   } else {
     start();
   }
