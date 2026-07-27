@@ -292,11 +292,12 @@
     'SCRIPT',
     'STYLE',
     'NOSCRIPT',
+    'IFRAME',
     'CODE',
     'PRE'
   ]);
 
-  const observedRoots = new WeakSet();
+  const observedShadowRoots = new WeakSet();
 
   function normalize(value) {
     return String(value || '')
@@ -395,15 +396,6 @@
 
     if (root.nodeType === Node.ELEMENT_NODE) {
       translateElementAttributes(root);
-
-      if (root.shadowRoot) {
-        translateSubtree(root.shadowRoot);
-        observeRoot(root.shadowRoot);
-      }
-
-      if (root.tagName === 'IFRAME') {
-        translateIframe(root);
-      }
     }
 
     const walker = document.createTreeWalker(
@@ -428,56 +420,73 @@
     while ((node = walker.nextNode())) {
       if (node.nodeType === Node.TEXT_NODE) {
         translateTextNode(node);
-        continue;
-      }
-
-      translateElementAttributes(node);
-
-      if (node.shadowRoot) {
-        translateSubtree(node.shadowRoot);
-        observeRoot(node.shadowRoot);
-      }
-
-      if (node.tagName === 'IFRAME') {
-        translateIframe(node);
+      } else {
+        translateElementAttributes(node);
       }
     }
   }
 
-  function translateIframe(iframe) {
-    if (!iframe) return;
+  function translateShadowRoot(root) {
+    if (!root) return;
 
-    try {
-      const iframeDocument =
-        iframe.contentDocument ||
-        iframe.contentWindow?.document;
+    translateSubtree(root);
 
-      if (!iframeDocument?.body) return;
+    root.querySelectorAll('[placeholder]').forEach((element) => {
+      const placeholder = normalize(
+        element.getAttribute('placeholder')
+      );
 
-      translateSubtree(iframeDocument.body);
-      observeRoot(iframeDocument.body);
-      translateAllShadowRoots(iframeDocument);
-    } catch (error) {
-      /*
-       * Iframe z inej domény nemožno upravovať.
-       * Chybu ignorujeme, aby skript pokračoval ďalej.
-       */
-    }
+      if (placeholder === normalize('e.g. 123456')) {
+        element.setAttribute(
+          'placeholder',
+          'pvz., 123456'
+        );
+      }
+
+      if (
+        placeholder ===
+        normalize('e.g. john.doe@example.com')
+      ) {
+        element.setAttribute(
+          'placeholder',
+          'pvz., john.doe@example.com'
+        );
+      }
+    });
   }
 
-  function translateAllShadowRoots(root = document) {
-    if (!root?.querySelectorAll) return;
+  function observeShadowRoot(root) {
+    if (!root || observedShadowRoots.has(root)) return;
 
-    root.querySelectorAll('*').forEach((element) => {
-      if (element.shadowRoot) {
-        translateSubtree(element.shadowRoot);
-        observeRoot(element.shadowRoot);
-        translateAllShadowRoots(element.shadowRoot);
-      }
+    observedShadowRoots.add(root);
 
-      if (element.tagName === 'IFRAME') {
-        translateIframe(element);
-      }
+    const observer = new MutationObserver(() => {
+      translateShadowRoot(root);
+      findAndTranslateShadowRoots(root);
+    });
+
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: [
+        ...ATTRIBUTES,
+        'value'
+      ]
+    });
+  }
+
+  function findAndTranslateShadowRoots(scope = document) {
+    if (!scope?.querySelectorAll) return;
+
+    scope.querySelectorAll('*').forEach((element) => {
+      if (!element.shadowRoot) return;
+
+      translateShadowRoot(element.shadowRoot);
+      observeShadowRoot(element.shadowRoot);
+
+      findAndTranslateShadowRoots(element.shadowRoot);
     });
   }
 
@@ -494,57 +503,31 @@
     });
   }
 
-  function observeRoot(root) {
-    if (!root || observedRoots.has(root)) return;
+  function translatePage() {
+    if (!document.body) return;
 
-    observedRoots.add(root);
+    translateSubtree(document.body);
+    findAndTranslateShadowRoots(document);
+    hideUndefined(document);
+  }
+
+  function observeDocument() {
+    if (!document.body) return;
 
     let scheduled = false;
-    const pendingNodes = new Set();
 
-    function flush() {
-      scheduled = false;
+    const observer = new MutationObserver(() => {
+      if (scheduled) return;
 
-      pendingNodes.forEach((node) => {
-        translateSubtree(node);
+      scheduled = true;
 
-        if (
-          node.nodeType === Node.ELEMENT_NODE ||
-          node.nodeType === Node.DOCUMENT_FRAGMENT_NODE ||
-          node.nodeType === Node.DOCUMENT_NODE
-        ) {
-          translateAllShadowRoots(node);
-        }
+      window.requestAnimationFrame(() => {
+        scheduled = false;
+        translatePage();
       });
-
-      pendingNodes.clear();
-      hideUndefined(root);
-    }
-
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'childList') {
-          mutation.addedNodes.forEach((node) => {
-            pendingNodes.add(node);
-          });
-        }
-
-        if (mutation.type === 'characterData') {
-          pendingNodes.add(mutation.target);
-        }
-
-        if (mutation.type === 'attributes') {
-          pendingNodes.add(mutation.target);
-        }
-      });
-
-      if (!scheduled) {
-        scheduled = true;
-        window.requestAnimationFrame(flush);
-      }
     });
 
-    observer.observe(root, {
+    observer.observe(document.body, {
       childList: true,
       subtree: true,
       characterData: true,
@@ -556,56 +539,40 @@
     });
   }
 
-  function translatePage() {
-    if (!document.body) return;
-
-    translateSubtree(document.body);
-    translateAllShadowRoots(document);
-    observeRoot(document.body);
-    hideUndefined(document);
-
-    document.querySelectorAll('iframe').forEach((iframe) => {
-      if (!iframe.dataset.giovaniTranslationListener) {
-        iframe.dataset.giovaniTranslationListener = '1';
-
-        iframe.addEventListener('load', () => {
-          translateIframe(iframe);
-        });
-      }
-
-      translateIframe(iframe);
-    });
-  }
-
   function patchAttachShadow() {
     if (
       !window.Element ||
       !Element.prototype.attachShadow ||
-      Element.prototype.attachShadow.__giovaniTranslationPatched
+      Element.prototype.attachShadow.__giovaniLtPatched
     ) {
       return;
     }
 
-    const originalAttachShadow = Element.prototype.attachShadow;
+    const originalAttachShadow =
+      Element.prototype.attachShadow;
 
     function patchedAttachShadow(options) {
-      const shadowRoot = originalAttachShadow.call(this, options);
+      const shadowRoot =
+        originalAttachShadow.call(this, options);
 
       window.setTimeout(() => {
-        translateSubtree(shadowRoot);
-        observeRoot(shadowRoot);
+        translateShadowRoot(shadowRoot);
+        observeShadowRoot(shadowRoot);
       }, 0);
 
       return shadowRoot;
     }
 
-    patchedAttachShadow.__giovaniTranslationPatched = true;
-    Element.prototype.attachShadow = patchedAttachShadow;
+    patchedAttachShadow.__giovaniLtPatched = true;
+
+    Element.prototype.attachShadow =
+      patchedAttachShadow;
   }
 
   function start() {
     patchAttachShadow();
     translatePage();
+    observeDocument();
 
     const delays = [
       100,
@@ -625,26 +592,28 @@
       window.setTimeout(translatePage, delay);
     });
 
-    let attempts = 0;
-
-    const interval = window.setInterval(() => {
-      translatePage();
-      attempts += 1;
-
-      if (attempts >= 30) {
-        window.clearInterval(interval);
-      }
+    window.setInterval(() => {
+      findAndTranslateShadowRoots(document);
     }, 1000);
 
-    window.addEventListener('load', translatePage);
+    window.addEventListener(
+      'load',
+      translatePage
+    );
 
-    window.addEventListener('pageshow', translatePage);
+    window.addEventListener(
+      'pageshow',
+      translatePage
+    );
 
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
-        translatePage();
+    document.addEventListener(
+      'visibilitychange',
+      () => {
+        if (!document.hidden) {
+          translatePage();
+        }
       }
-    });
+    );
   }
 
   if (document.readyState === 'loading') {
