@@ -9,8 +9,7 @@
   }
 
   const translations = {
-    'My order':
-      'Mano užsakymas',
+    'My order': 'Mano užsakymas',
 
     'View order details':
       'Peržiūrėti užsakymo informaciją',
@@ -39,14 +38,6 @@
       'pvz., john.doe@example.com'
   };
 
-  const pageMetadata = {
-    title:
-      'Mano užsakymo informacija | Giovani',
-
-    description:
-      'Peržiūrėkite savo Giovani užsakymo informaciją įvedę užsakymo numerį ir užsakymo metu naudotą el. pašto adresą.'
-  };
-
   function cleanText(value) {
     return String(value || '')
       .replace(/\u00a0/g, ' ')
@@ -55,62 +46,76 @@
   }
 
   function isMyOrderPage() {
-    const pathname = window.location.pathname.replace(/\/+$/, '');
-
-    return pathname === '/my-order';
-  }
-
-  function setMetaContent(selector, attributeName, attributeValue, content) {
-    let element = document.head.querySelector(selector);
-
-    if (!element) {
-      element = document.createElement('meta');
-      element.setAttribute(attributeName, attributeValue);
-      document.head.appendChild(element);
-    }
-
-    element.setAttribute('content', content);
+    return (
+      window.location.pathname === '/my-order/' ||
+      window.location.pathname === '/my-order'
+    );
   }
 
   function updatePageMetadata() {
     if (!isMyOrderPage()) return;
     if (!document.head) return;
 
-    document.title = pageMetadata.title;
+    const title =
+      'Mano užsakymo informacija | Giovani';
 
-    setMetaContent(
-      'meta[name="description"]',
-      'name',
-      'description',
-      pageMetadata.description
+    const description =
+      'Peržiūrėkite savo Giovani užsakymo informaciją įvedę užsakymo numerį ir užsakymo metu naudotą el. pašto adresą.';
+
+    document.title = title;
+
+    let metaDescription = document.querySelector(
+      'meta[name="description"]'
     );
 
-    setMetaContent(
-      'meta[property="og:title"]',
-      'property',
-      'og:title',
-      pageMetadata.title
+    if (!metaDescription) {
+      metaDescription = document.createElement('meta');
+      metaDescription.setAttribute(
+        'name',
+        'description'
+      );
+      document.head.appendChild(metaDescription);
+    }
+
+    metaDescription.setAttribute(
+      'content',
+      description
     );
 
-    setMetaContent(
-      'meta[property="og:description"]',
-      'property',
-      'og:description',
-      pageMetadata.description
+    let ogTitle = document.querySelector(
+      'meta[property="og:title"]'
     );
 
-    setMetaContent(
-      'meta[name="twitter:title"]',
-      'name',
-      'twitter:title',
-      pageMetadata.title
+    if (!ogTitle) {
+      ogTitle = document.createElement('meta');
+      ogTitle.setAttribute(
+        'property',
+        'og:title'
+      );
+      document.head.appendChild(ogTitle);
+    }
+
+    ogTitle.setAttribute(
+      'content',
+      title
     );
 
-    setMetaContent(
-      'meta[name="twitter:description"]',
-      'name',
-      'twitter:description',
-      pageMetadata.description
+    let ogDescription = document.querySelector(
+      'meta[property="og:description"]'
+    );
+
+    if (!ogDescription) {
+      ogDescription = document.createElement('meta');
+      ogDescription.setAttribute(
+        'property',
+        'og:description'
+      );
+      document.head.appendChild(ogDescription);
+    }
+
+    ogDescription.setAttribute(
+      'content',
+      description
     );
   }
 
@@ -181,45 +186,11 @@
           );
         }
       });
-
-    root
-      .querySelectorAll('[title], [aria-label]')
-      .forEach(function (element) {
-        ['title', 'aria-label'].forEach(function (attribute) {
-          if (!element.hasAttribute(attribute)) return;
-
-          const original = cleanText(
-            element.getAttribute(attribute)
-          );
-
-          const translated = translations[original];
-
-          if (translated) {
-            element.setAttribute(
-              attribute,
-              translated
-            );
-          }
-        });
-      });
   }
 
   function translateRoot(root) {
     translateTextNodes(root);
     translateAttributes(root);
-  }
-
-  function translateNestedShadowRoots(root) {
-    if (!root || !root.querySelectorAll) return;
-
-    root
-      .querySelectorAll('*')
-      .forEach(function (host) {
-        if (!host.shadowRoot) return;
-
-        translateRoot(host.shadowRoot);
-        translateNestedShadowRoots(host.shadowRoot);
-      });
   }
 
   function translateAllShadowRoots() {
@@ -229,20 +200,26 @@
         if (!host.shadowRoot) return;
 
         translateRoot(host.shadowRoot);
-        translateNestedShadowRoots(host.shadowRoot);
+
+        host.shadowRoot
+          .querySelectorAll('*')
+          .forEach(function (nestedHost) {
+            if (nestedHost.shadowRoot) {
+              translateRoot(nestedHost.shadowRoot);
+            }
+          });
       });
   }
 
   function translateEverything() {
     if (!document.body) return;
 
-    updatePageMetadata();
     translateRoot(document.body);
     translateAllShadowRoots();
+    updatePageMetadata();
   }
 
   function start() {
-    updatePageMetadata();
     translateEverything();
 
     const observer = new MutationObserver(
@@ -258,41 +235,13 @@
       attributes: true,
       attributeFilter: [
         'placeholder',
-        'value',
-        'title',
-        'aria-label'
+        'value'
       ]
-    });
-
-    [
-      100,
-      300,
-      500,
-      1000,
-      1500,
-      2500,
-      4000,
-      7000
-    ].forEach(function (delay) {
-      window.setTimeout(
-        translateEverything,
-        delay
-      );
     });
 
     window.setInterval(
       translateEverything,
       500
-    );
-
-    window.addEventListener(
-      'load',
-      translateEverything
-    );
-
-    window.addEventListener(
-      'pageshow',
-      translateEverything
     );
   }
 
