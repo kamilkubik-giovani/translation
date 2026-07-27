@@ -569,9 +569,95 @@
       patchedAttachShadow;
   }
 
+
+  function translateMyOrderForm() {
+    const replacements = {
+      "View order details": "Peržiūrėti užsakymo informaciją",
+      "To view your order details, enter your order number and the email address used during checkout.":
+        "Norėdami peržiūrėti užsakymo informaciją, įveskite užsakymo numerį ir el. pašto adresą, kurį naudojote pateikdami užsakymą.",
+      "Order number": "Užsakymo numeris",
+      "Your email": "Jūsų el. paštas",
+      "This is the email address used for the order.":
+        "Tai el. pašto adresas, kuris buvo naudojamas pateikiant užsakymą.",
+      "View order": "Peržiūrėti užsakymą"
+    };
+
+    const placeholderReplacements = {
+      "e.g. 123456": "pvz., 123456",
+      "e.g. john.doe@example.com": "pvz., john.doe@example.com"
+    };
+
+    document.querySelectorAll('*').forEach((host) => {
+      const root = host.shadowRoot;
+      if (!root) return;
+
+      const walker = document.createTreeWalker(
+        root,
+        NodeFilter.SHOW_TEXT
+      );
+
+      const textNodes = [];
+      while (walker.nextNode()) {
+        textNodes.push(walker.currentNode);
+      }
+
+      textNodes.forEach((node) => {
+        const original = node.nodeValue || '';
+        const clean = original
+          .replace(/\u00a0/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        const translated = replacements[clean];
+        if (!translated) return;
+
+        const leading = original.match(/^\s*/)?.[0] || '';
+        const trailing = original.match(/\s*$/)?.[0] || '';
+        node.nodeValue = leading + translated + trailing;
+      });
+
+      root.querySelectorAll('[placeholder]').forEach((element) => {
+        const original = String(element.getAttribute('placeholder') || '')
+          .replace(/\u00a0/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        const translated = placeholderReplacements[original];
+        if (translated) {
+          element.setAttribute('placeholder', translated);
+        }
+      });
+
+      if (!root.__giovaniMyOrderObserver) {
+        let scheduled = false;
+
+        const observer = new MutationObserver(() => {
+          if (scheduled) return;
+          scheduled = true;
+
+          window.requestAnimationFrame(() => {
+            scheduled = false;
+            translateMyOrderForm();
+          });
+        });
+
+        observer.observe(root, {
+          childList: true,
+          subtree: true,
+          characterData: true,
+          attributes: true,
+          attributeFilter: ['placeholder', 'value']
+        });
+
+        root.__giovaniMyOrderObserver = observer;
+      }
+    });
+  }
+
   function start() {
     patchAttachShadow();
     translatePage();
+    translateMyOrderForm();
     observeDocument();
 
     const delays = [
@@ -589,11 +675,15 @@
     ];
 
     delays.forEach((delay) => {
-      window.setTimeout(translatePage, delay);
+      window.setTimeout(() => {
+        translatePage();
+        translateMyOrderForm();
+      }, delay);
     });
 
     window.setInterval(() => {
       findAndTranslateShadowRoots(document);
+      translateMyOrderForm();
     }, 1000);
 
     window.addEventListener(
