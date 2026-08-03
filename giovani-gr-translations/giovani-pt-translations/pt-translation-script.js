@@ -15,6 +15,7 @@
     "736 ratings": "736 Avaliações",
     "My proforma invoices": "As minhas faturas proforma",
     "Client proforma invoices": "Faturas proforma do cliente",
+    "I have a cupão de desconto:": "Tenho um cupão de desconto:",
     "My credit notes": "As minhas notas de crédito",
     "Client credit notes": "Notas de crédito do cliente",
     "My delivery notes": "As minhas guias de remessa",
