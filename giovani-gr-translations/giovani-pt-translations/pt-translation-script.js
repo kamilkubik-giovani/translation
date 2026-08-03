@@ -269,6 +269,7 @@
     "dados pessoais e morada": "Dados pessoais e morada",
     "cupão de desconto:": "Cupão de desconto:",
     "i have a": "Tenho um",
+    "I have a": "Tenho um",
     "i have a cupão de desconto:": "Tenho um cupão de desconto:"
   };
 
