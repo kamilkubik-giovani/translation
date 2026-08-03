@@ -273,16 +273,35 @@
     "i have a cupão de desconto:": "Tenho um cupão de desconto:"
   };
 
-  const partialTranslations = [
-    [/\bI\s+have\s+a\b/gi, 'Tenho um'],
-    [/\bo\s+meu\s+carrinho\b/gi, 'O meu carrinho'],
-    [/\bpagamento\s+e\s+envio\b/gi, 'Pagamento e envio'],
-    [/\bdados\s+pessoais\s+e\s+morada\b/gi, 'Dados pessoais e morada'],
-    [/\bcupão\s+de\s+desconto\s*:/gi, 'cupão de desconto:']
-  ];
-
   const ATTRIBUTES = ['placeholder', 'title', 'aria-label', 'data-title'];
   const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'IFRAME', 'CODE', 'PRE']);
+
+  const PARTIAL_REPLACEMENTS = [
+    [/\bI\s+have\s+a\b/gi, 'Tenho um'],
+    [/\bo meu carrinho\b/g, 'O meu carrinho'],
+    [/\bpagamento e envio\b/g, 'Pagamento e envio'],
+    [/\bdados pessoais e morada\b/g, 'Dados pessoais e morada']
+  ];
+
+  const STYLE_ID = 'giovani-pt-translation-fixes';
+
+  function installStyles() {
+    if (document.getElementById(STYLE_ID)) return;
+    const style = document.createElement('style');
+    style.id = STYLE_ID;
+    style.textContent = `
+      .giovani-pt-translated { text-transform: none !important; }
+      .giovani-pt-before-fix::before {
+        content: var(--giovani-pt-before-content) !important;
+        text-transform: none !important;
+      }
+      .giovani-pt-after-fix::after {
+        content: var(--giovani-pt-after-content) !important;
+        text-transform: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
 
   function normalize(value) {
     return String(value || '')
@@ -297,21 +316,7 @@
   );
 
   function translateString(value) {
-    const exact = normalizedTranslations.get(normalize(value));
-    if (exact) return exact;
-
-    let result = String(value || '');
-    let changed = false;
-
-    for (const [pattern, replacement] of partialTranslations) {
-      const updated = result.replace(pattern, replacement);
-      if (updated !== result) {
-        result = updated;
-        changed = true;
-      }
-    }
-
-    return changed ? result : null;
+    return normalizedTranslations.get(normalize(value)) || null;
   }
 
   function translateTextNode(node) {
@@ -319,21 +324,68 @@
     if (!node.parentElement || SKIP_TAGS.has(node.parentElement.tagName)) return;
 
     const original = node.nodeValue;
-    const exact = normalizedTranslations.get(normalize(original));
+    const translated = translateString(original);
 
-    if (exact) {
+    if (translated) {
       const leading = original.match(/^\s*/)?.[0] || '';
       const trailing = original.match(/\s*$/)?.[0] || '';
-      node.nodeValue = leading + exact + trailing;
+      node.nodeValue = leading + translated + trailing;
+      node.parentElement.classList.add('giovani-pt-translated');
       return;
     }
 
     let updated = original;
-    for (const [pattern, replacement] of partialTranslations) {
+    for (const [pattern, replacement] of PARTIAL_REPLACEMENTS) {
       updated = updated.replace(pattern, replacement);
     }
 
-    if (updated !== original) node.nodeValue = updated;
+    if (updated !== original) {
+      node.nodeValue = updated;
+      node.parentElement.classList.add('giovani-pt-translated');
+    }
+  }
+
+  function unquoteCssContent(value) {
+    if (!value || value === 'none' || value === 'normal') return '';
+    if ((value.startsWith('\"') && value.endsWith('\"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
+      return value.slice(1, -1);
+    }
+    return value;
+  }
+
+  function fixPseudoContent(root) {
+    const scope = root?.querySelectorAll ? root : document;
+    const elements = scope === document ? document.querySelectorAll('*') : [scope, ...scope.querySelectorAll('*')];
+
+    for (const element of elements) {
+      if (!(element instanceof Element) || SKIP_TAGS.has(element.tagName)) continue;
+
+      for (const pseudo of ['::before', '::after']) {
+        const raw = getComputedStyle(element, pseudo).content;
+        const content = unquoteCssContent(raw);
+        if (!content) continue;
+
+        let translated = translateString(content);
+        if (!translated) {
+          let updated = content;
+          for (const [pattern, replacement] of PARTIAL_REPLACEMENTS) {
+            updated = updated.replace(pattern, replacement);
+          }
+          if (updated !== content) translated = updated;
+        }
+
+        if (!translated) continue;
+
+        if (pseudo === '::before') {
+          element.style.setProperty('--giovani-pt-before-content', JSON.stringify(translated));
+          element.classList.add('giovani-pt-before-fix');
+        } else {
+          element.style.setProperty('--giovani-pt-after-content', JSON.stringify(translated));
+          element.classList.add('giovani-pt-after-fix');
+        }
+      }
+    }
   }
 
   function translateElementAttributes(element) {
@@ -376,24 +428,20 @@
   }
 
   function start() {
+    installStyles();
     translateSubtree(document.body);
+    fixPseudoContent(document.body);
     hideUndefined(document.body);
-
-    // Shoptet can redraw checkout labels after the initial page load.
-    // Repeat a few lightweight passes so late-rendered fragments are translated too.
-    [250, 750, 1500, 3000].forEach((delay) => {
-      window.setTimeout(() => {
-        translateSubtree(document.body);
-        hideUndefined(document.body);
-      }, delay);
-    });
-
     let scheduled = false;
     const pendingNodes = new Set();
     const flush = () => {
       scheduled = false;
-      pendingNodes.forEach((node) => translateSubtree(node));
+      pendingNodes.forEach((node) => {
+        translateSubtree(node);
+        if (node.nodeType === Node.ELEMENT_NODE) fixPseudoContent(node);
+      });
       pendingNodes.clear();
+      fixPseudoContent(document.body);
       hideUndefined(document.body);
     };
     const observer = new MutationObserver((mutations) => {
@@ -406,10 +454,11 @@
         window.requestAnimationFrame(flush);
       }
     });
-    ['click', 'change', 'input'].forEach((eventName) => {
-      document.addEventListener(eventName, () => {
-        window.setTimeout(() => translateSubtree(document.body), 50);
-      }, true);
+    [250, 750, 1500, 3000].forEach((delay) => {
+      window.setTimeout(() => {
+        translateSubtree(document.body);
+        fixPseudoContent(document.body);
+      }, delay);
     });
 
     observer.observe(document.body, {
