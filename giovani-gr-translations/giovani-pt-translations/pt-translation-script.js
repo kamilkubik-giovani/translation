@@ -10,7 +10,7 @@
 
   const translations = {
     "My personal details": "Os meus dados pessoais",
-    "I have a discount coupon": "Tenho um cupão de desconto",
+    "i have a discount coupon": "Tenho um cupão de desconto",
     "My orders": "As minhas encomendas",
     "My invoices": "As minhas faturas",
     "736 ratings": "736 Avaliações",
