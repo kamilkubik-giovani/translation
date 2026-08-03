@@ -472,4 +472,36 @@
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true });
   else start();
+  const ptFixes = [
+  [/I have a/gi, "Tenho um"],
+  [/o meu carrinho/g, "O meu carrinho"],
+  [/pagamento e envio/g, "Pagamento e envio"],
+  [/dados pessoais e morada/g, "Dados pessoais e morada"]
+];
+
+function applyPtFixes() {
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let node;
+
+  while ((node = walker.nextNode())) {
+    let value = node.nodeValue;
+
+    for (const [pattern, replacement] of ptFixes) {
+      value = value.replace(pattern, replacement);
+    }
+
+    if (value !== node.nodeValue) {
+      node.nodeValue = value;
+      node.parentElement?.style.setProperty("text-transform", "none", "important");
+    }
+  }
+}
+
+applyPtFixes();
+
+new MutationObserver(applyPtFixes).observe(document.body, {
+  childList: true,
+  subtree: true,
+  characterData: true
+});
 })();
