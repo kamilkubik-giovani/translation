@@ -260,6 +260,8 @@
     "save changes": "Guardar alterações",
     "close": "Fechar",
     "yes": "Sim",
+    "o meu carrinho": "O meu carrinho",
+"dados pessoais e morada": "Dados pessoais e morada",
     "no": "Não"
   };
 
