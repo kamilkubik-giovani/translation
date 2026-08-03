@@ -273,6 +273,14 @@
     "i have a cupão de desconto:": "Tenho um cupão de desconto:"
   };
 
+  const partialTranslations = [
+    [/\bI\s+have\s+a\b/gi, 'Tenho um'],
+    [/\bo\s+meu\s+carrinho\b/gi, 'O meu carrinho'],
+    [/\bpagamento\s+e\s+envio\b/gi, 'Pagamento e envio'],
+    [/\bdados\s+pessoais\s+e\s+morada\b/gi, 'Dados pessoais e morada'],
+    [/\bcupão\s+de\s+desconto\s*:/gi, 'cupão de desconto:']
+  ];
+
   const ATTRIBUTES = ['placeholder', 'title', 'aria-label', 'data-title'];
   const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'IFRAME', 'CODE', 'PRE']);
 
@@ -289,18 +297,43 @@
   );
 
   function translateString(value) {
-    return normalizedTranslations.get(normalize(value)) || null;
+    const exact = normalizedTranslations.get(normalize(value));
+    if (exact) return exact;
+
+    let result = String(value || '');
+    let changed = false;
+
+    for (const [pattern, replacement] of partialTranslations) {
+      const updated = result.replace(pattern, replacement);
+      if (updated !== result) {
+        result = updated;
+        changed = true;
+      }
+    }
+
+    return changed ? result : null;
   }
 
   function translateTextNode(node) {
     if (!node || node.nodeType !== Node.TEXT_NODE) return;
     if (!node.parentElement || SKIP_TAGS.has(node.parentElement.tagName)) return;
+
     const original = node.nodeValue;
-    const translated = translateString(original);
-    if (!translated) return;
-    const leading = original.match(/^\s*/)?.[0] || '';
-    const trailing = original.match(/\s*$/)?.[0] || '';
-    node.nodeValue = leading + translated + trailing;
+    const exact = normalizedTranslations.get(normalize(original));
+
+    if (exact) {
+      const leading = original.match(/^\s*/)?.[0] || '';
+      const trailing = original.match(/\s*$/)?.[0] || '';
+      node.nodeValue = leading + exact + trailing;
+      return;
+    }
+
+    let updated = original;
+    for (const [pattern, replacement] of partialTranslations) {
+      updated = updated.replace(pattern, replacement);
+    }
+
+    if (updated !== original) node.nodeValue = updated;
   }
 
   function translateElementAttributes(element) {
@@ -345,6 +378,16 @@
   function start() {
     translateSubtree(document.body);
     hideUndefined(document.body);
+
+    // Shoptet can redraw checkout labels after the initial page load.
+    // Repeat a few lightweight passes so late-rendered fragments are translated too.
+    [250, 750, 1500, 3000].forEach((delay) => {
+      window.setTimeout(() => {
+        translateSubtree(document.body);
+        hideUndefined(document.body);
+      }, delay);
+    });
+
     let scheduled = false;
     const pendingNodes = new Set();
     const flush = () => {
@@ -363,6 +406,12 @@
         window.requestAnimationFrame(flush);
       }
     });
+    ['click', 'change', 'input'].forEach((eventName) => {
+      document.addEventListener(eventName, () => {
+        window.setTimeout(() => translateSubtree(document.body), 50);
+      }, true);
+    });
+
     observer.observe(document.body, {
       childList: true,
       subtree: true,
