@@ -9,7 +9,8 @@
   }
 
   const translations = {
-    'My order': 'Mano užsakymas',
+    'My order':
+      'Mano užsakymas',
 
     'View order details':
       'Peržiūrėti užsakymo informaciją',
@@ -33,6 +34,25 @@
       'Atsisakau gauti prašymus įvertinti internetinę parduotuvę ir jos produktus'
   };
 
+  /*
+   * Partial translations
+   * Použijú sa aj v prípade, keď je anglická fráza
+   * iba časťou dlhšieho textového uzla.
+   */
+  const partialTranslations = [
+    {
+      pattern: /I do not consent to receiving request to review the online store and its products/gi,
+      replacement:
+        'Atsisakau gauti prašymus įvertinti internetinę parduotuvę ir jos produktus'
+    },
+
+    {
+      pattern: /I do not consent to receiving request to review online store and its products/gi,
+      replacement:
+        'Atsisakau gauti prašymus įvertinti internetinę parduotuvę ir jos produktus'
+    }
+  ];
+
   const placeholderTranslations = {
     'e.g. 123456':
       'pvz., 123456',
@@ -41,11 +61,52 @@
       'pvz., john.doe@example.com'
   };
 
+  const SKIP_TAGS = new Set([
+    'SCRIPT',
+    'STYLE',
+    'NOSCRIPT',
+    'IFRAME',
+    'CODE',
+    'PRE',
+    'TEXTAREA'
+  ]);
+
   function cleanText(value) {
     return String(value || '')
       .replace(/\u00a0/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
+  }
+
+  /*
+   * Case-insensitive mapa presných prekladov.
+   */
+  const normalizedTranslations = new Map();
+
+  Object.keys(translations).forEach(function (source) {
+    normalizedTranslations.set(
+      cleanText(source).toLowerCase(),
+      translations[source]
+    );
+  });
+
+  function getExactTranslation(value) {
+    return normalizedTranslations.get(
+      cleanText(value).toLowerCase()
+    );
+  }
+
+  function applyPartialTranslations(value) {
+    let result = value;
+
+    partialTranslations.forEach(function (item) {
+      result = result.replace(
+        item.pattern,
+        item.replacement
+      );
+    });
+
+    return result;
   }
 
   function isMyOrderPage() {
@@ -72,12 +133,17 @@
     );
 
     if (!metaDescription) {
-      metaDescription = document.createElement('meta');
+      metaDescription =
+        document.createElement('meta');
+
       metaDescription.setAttribute(
         'name',
         'description'
       );
-      document.head.appendChild(metaDescription);
+
+      document.head.appendChild(
+        metaDescription
+      );
     }
 
     metaDescription.setAttribute(
@@ -90,12 +156,17 @@
     );
 
     if (!ogTitle) {
-      ogTitle = document.createElement('meta');
+      ogTitle =
+        document.createElement('meta');
+
       ogTitle.setAttribute(
         'property',
         'og:title'
       );
-      document.head.appendChild(ogTitle);
+
+      document.head.appendChild(
+        ogTitle
+      );
     }
 
     ogTitle.setAttribute(
@@ -103,17 +174,23 @@
       title
     );
 
-    let ogDescription = document.querySelector(
-      'meta[property="og:description"]'
-    );
+    let ogDescription =
+      document.querySelector(
+        'meta[property="og:description"]'
+      );
 
     if (!ogDescription) {
-      ogDescription = document.createElement('meta');
+      ogDescription =
+        document.createElement('meta');
+
       ogDescription.setAttribute(
         'property',
         'og:description'
       );
-      document.head.appendChild(ogDescription);
+
+      document.head.appendChild(
+        ogDescription
+      );
     }
 
     ogDescription.setAttribute(
@@ -122,27 +199,29 @@
     );
   }
 
-  function translateTextNodes(root) {
-    if (!root) return;
+  function translateTextNode(node) {
+    if (!node) return;
+    if (!node.parentElement) return;
 
-    const walker = document.createTreeWalker(
-      root,
-      NodeFilter.SHOW_TEXT
-    );
-
-    const nodes = [];
-
-    while (walker.nextNode()) {
-      nodes.push(walker.currentNode);
+    if (
+      SKIP_TAGS.has(
+        node.parentElement.tagName
+      )
+    ) {
+      return;
     }
 
-    nodes.forEach(function (node) {
-      const original = node.nodeValue;
-      const text = cleanText(original);
-      const translated = translations[text];
+    const original = node.nodeValue;
 
-      if (!translated) return;
+    if (!original) return;
 
+    /*
+     * 1. Najprv presná zhoda.
+     */
+    const exactTranslation =
+      getExactTranslation(original);
+
+    if (exactTranslation) {
       const leading =
         original.match(/^\s*/)?.[0] || '';
 
@@ -150,22 +229,83 @@
         original.match(/\s*$/)?.[0] || '';
 
       node.nodeValue =
-        leading + translated + trailing;
-    });
+        leading +
+        exactTranslation +
+        trailing;
+
+      return;
+    }
+
+    /*
+     * 2. Ak presná zhoda neexistuje,
+     * skúsi sa čiastočná náhrada.
+     */
+    const translated =
+      applyPartialTranslations(original);
+
+    if (translated !== original) {
+      node.nodeValue = translated;
+    }
+  }
+
+  function translateTextNodes(root) {
+    if (!root) return;
+
+    if (root.nodeType === Node.TEXT_NODE) {
+      translateTextNode(root);
+      return;
+    }
+
+    const walker = document.createTreeWalker(
+      root,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode: function (node) {
+          if (
+            node.parentElement &&
+            SKIP_TAGS.has(
+              node.parentElement.tagName
+            )
+          ) {
+            return NodeFilter.FILTER_REJECT;
+          }
+
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      }
+    );
+
+    const nodes = [];
+
+    while (walker.nextNode()) {
+      nodes.push(
+        walker.currentNode
+      );
+    }
+
+    nodes.forEach(
+      translateTextNode
+    );
   }
 
   function translateAttributes(root) {
-    if (!root || !root.querySelectorAll) return;
+    if (!root || !root.querySelectorAll) {
+      return;
+    }
 
     root
       .querySelectorAll('[placeholder]')
       .forEach(function (element) {
         const original = cleanText(
-          element.getAttribute('placeholder')
+          element.getAttribute(
+            'placeholder'
+          )
         );
 
         const translated =
-          placeholderTranslations[original];
+          placeholderTranslations[
+            original
+          ];
 
         if (translated) {
           element.setAttribute(
@@ -176,13 +316,92 @@
       });
 
     root
-      .querySelectorAll('input, button')
+      .querySelectorAll(
+        '[title], [aria-label]'
+      )
       .forEach(function (element) {
-        const original = cleanText(element.value);
-        const translated = translations[original];
+        ['title', 'aria-label']
+          .forEach(function (attribute) {
+            if (
+              !element.hasAttribute(
+                attribute
+              )
+            ) {
+              return;
+            }
 
-        if (translated) {
-          element.value = translated;
+            const original =
+              element.getAttribute(
+                attribute
+              );
+
+            const exact =
+              getExactTranslation(
+                original
+              );
+
+            if (exact) {
+              element.setAttribute(
+                attribute,
+                exact
+              );
+
+              return;
+            }
+
+            const translated =
+              applyPartialTranslations(
+                original
+              );
+
+            if (
+              translated !== original
+            ) {
+              element.setAttribute(
+                attribute,
+                translated
+              );
+            }
+          });
+      });
+
+    root
+      .querySelectorAll(
+        'input, button'
+      )
+      .forEach(function (element) {
+        const original =
+          element.value;
+
+        if (!original) return;
+
+        const exact =
+          getExactTranslation(
+            original
+          );
+
+        if (exact) {
+          element.value = exact;
+
+          element.setAttribute(
+            'value',
+            exact
+          );
+
+          return;
+        }
+
+        const translated =
+          applyPartialTranslations(
+            original
+          );
+
+        if (
+          translated !== original
+        ) {
+          element.value =
+            translated;
+
           element.setAttribute(
             'value',
             translated
@@ -196,59 +415,106 @@
     translateAttributes(root);
   }
 
+  function translateShadowRoot(
+    shadowRoot
+  ) {
+    if (!shadowRoot) return;
+
+    translateRoot(shadowRoot);
+
+    shadowRoot
+      .querySelectorAll('*')
+      .forEach(function (host) {
+        if (host.shadowRoot) {
+          translateShadowRoot(
+            host.shadowRoot
+          );
+        }
+      });
+  }
+
   function translateAllShadowRoots() {
     document
       .querySelectorAll('*')
       .forEach(function (host) {
-        if (!host.shadowRoot) return;
-
-        translateRoot(host.shadowRoot);
-
-        host.shadowRoot
-          .querySelectorAll('*')
-          .forEach(function (nestedHost) {
-            if (nestedHost.shadowRoot) {
-              translateRoot(nestedHost.shadowRoot);
-            }
-          });
+        if (host.shadowRoot) {
+          translateShadowRoot(
+            host.shadowRoot
+          );
+        }
       });
   }
 
   function translateEverything() {
     if (!document.body) return;
 
-    translateRoot(document.body);
+    translateRoot(
+      document.body
+    );
+
     translateAllShadowRoots();
+
     updatePageMetadata();
   }
 
   function start() {
     translateEverything();
 
-    const observer = new MutationObserver(
-      function () {
-        translateEverything();
+    let scheduled = false;
+
+    const observer =
+      new MutationObserver(
+        function () {
+          if (scheduled) return;
+
+          scheduled = true;
+
+          window.requestAnimationFrame(
+            function () {
+              scheduled = false;
+
+              translateEverything();
+            }
+          );
+        }
+      );
+
+    observer.observe(
+      document.documentElement,
+      {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: [
+          'placeholder',
+          'value',
+          'title',
+          'aria-label'
+        ]
       }
     );
 
-    observer.observe(document.documentElement, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: [
-        'placeholder',
-        'value'
-      ]
+    /*
+     * Dodatočné kontroly po načítaní
+     * dynamických Shoptet prvkov.
+     */
+    [
+      250,
+      750,
+      1500,
+      3000
+    ].forEach(function (delay) {
+      window.setTimeout(
+        translateEverything,
+        delay
+      );
     });
-
-    window.setInterval(
-      translateEverything,
-      500
-    );
   }
 
-  if (document.readyState === 'loading') {
+  if (
+    document.readyState === 'loading'
+  ) {
     document.addEventListener(
       'DOMContentLoaded',
       start,
