@@ -11,6 +11,7 @@
   const translations = {
     "reviews": "avaliações",
     "Detalhe":"DETALHES",
+    "Informe seu e-mail e enviaremos informações sobre novos produtos em nossa loja.": "Introduza o seu e-mail e receba novidades sobre os nossos produtos.",
     "0 reviews": "0 avaliações",
     " COMO VOCÊ AVALIARIA ESTE PRODUTO? ESCOLHA DE 1 A 5 ESTRELAS, ONDE 1 É A PIOR E 5 É A MELHOR AVALIAÇÃO.": "COMO AVALIA ESTE PRODUTO? ESCOLHA DE 1 A 5 ESTRELAS, SENDO 1 A PIOR AVALIAÇÃO E 5 A MELHOR.",
     "My personal details": "Os meus dados pessoais",
