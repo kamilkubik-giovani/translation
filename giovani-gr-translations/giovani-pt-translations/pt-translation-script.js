@@ -10,6 +10,10 @@
 
   const translations = {
     "reviews": "avaliações",
+    "Siga no Instagram": " Siga-nos no Instagram",
+    "Contato": "Contacto",
+    "Cadastro": "Registo",
+    "Senha novamente": "Confirmar palavra-passe", 
     "Detalhe":"DETALHES",
     "Informe seu e-mail e enviaremos informações sobre novos produtos em nossa loja.": "Introduza o seu e-mail e receba novidades sobre os nossos produtos.",
     "0 reviews": "0 avaliações",
