@@ -13,7 +13,7 @@
     "Siga no Instagram": " Siga-nos no Instagram",
     "Contato": "CONTACTO",
     "Cadastro": "Registo",
-    "Senha novamente": "Confirmar palavra-passe", 
+    "Senha novamente": "CONFIRMAR PALAVRA-PASSE", 
     "Detalhe":"DETALHES",
     "Informe seu e-mail e enviaremos informações sobre novos produtos em nossa loja.": "Introduza o seu e-mail e receba novidades sobre os nossos produtos.",
     "0 reviews": "0 avaliações",
