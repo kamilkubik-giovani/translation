@@ -9,6 +9,7 @@
   if (!ALLOWED_HOSTS.has(window.location.hostname)) return;
 
   const translations = {
+    "reviews": "avaliações",
     " COMO VOCÊ AVALIARIA ESTE PRODUTO? ESCOLHA DE 1 A 5 ESTRELAS, ONDE 1 É A PIOR E 5 É A MELHOR AVALIAÇÃO.": "COMO AVALIA ESTE PRODUTO? ESCOLHA DE 1 A 5 ESTRELAS, SENDO 1 A PIOR AVALIAÇÃO E 5 A MELHOR.",
     "My personal details": "Os meus dados pessoais",
     "i have a discount coupon": "Tenho um cupão de desconto",
