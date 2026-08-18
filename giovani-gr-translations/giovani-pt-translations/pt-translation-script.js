@@ -11,7 +11,7 @@
   const translations = {
     "reviews": "avaliações",
     "Siga no Instagram": " Siga-nos no Instagram",
-    "Contato": "Contacto",
+    "Contato": "CONTACTO",
     "Cadastro": "Registo",
     "Senha novamente": "Confirmar palavra-passe", 
     "Detalhe":"DETALHES",
