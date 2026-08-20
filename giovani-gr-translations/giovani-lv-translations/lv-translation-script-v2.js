@@ -10,7 +10,7 @@
   "translations": {
     "My personal details": "Mani personas dati",
     "My orders": "Mani pasūtījumi",
-    "I do not consent to receiving request to review the online store and its products": "Es nepiekrītu saņemt lūgumus novērtēt interneta veikalu un tā produktus.",
+    "I do not consent to receiving requests to review the online store and its products": "Es nepiekrītu saņemt lūgumus novērtēt interneta veikalu un tā produktus.",
     "My invoices": "Mani rēķini",
     "736 ratings": "736 vērtējumi",
     "My proforma invoices": "Mani priekšapmaksas rēķini",
