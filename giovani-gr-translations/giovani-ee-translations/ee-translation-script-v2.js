@@ -10,7 +10,7 @@
   "translations": {
     "My personal details": "Minu isikuandmed",
     "My orders": "Minu tellimused",
-    "I do not consent to receiving request to review the online store and its products": "Ma ei nõustu saama palveid veebipoe ja selle toodete hindamiseks.",
+    "I do not consent to receiving requests to review the online store and its products": "Ma ei nõustu saama palveid veebipoe ja selle toodete hindamiseks.",
     "My invoices": "Minu arved",
     "736 ratings": "736 hinnangut",
     "My proforma invoices": "Minu ettemaksuarved",
