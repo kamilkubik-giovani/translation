@@ -10,7 +10,7 @@
   "translations": {
     "My personal details": "Omat henkilötietoni",
     "My orders": "Omat tilaukseni",
-    "I do not consent to receiving request to review the online store and its products": "En suostu vastaanottamaan pyyntöjä verkkokaupan ja sen tuotteiden arvioimiseksi.",
+    "I do not consent to receiving requests to review the online store and its products": "En suostu vastaanottamaan pyyntöjä verkkokaupan ja sen tuotteiden arvioimiseksi.",
     "My invoices": "Omat laskuni",
     "736 ratings": "736 arviota",
     "My proforma invoices": "Omat proformalaskuni",
