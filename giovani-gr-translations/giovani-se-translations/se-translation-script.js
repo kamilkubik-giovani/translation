@@ -6,6 +6,9 @@
 
   const translations = {
     "My personal details": "Mina personuppgifter",
+    'Buy for': 'Köp för',
+    'and get': 'och få',
+    'free shipping!': 'fri frakt!',
     "My orders": "Mina beställningar",
     "My invoices": "Mina fakturor",
     "736 ratings": "736 Omdömen",
