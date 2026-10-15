@@ -281,6 +281,9 @@
     {
       pattern: /I do not consent to receiving request to review the online store and its products/gi,
       replacement: 'Jag samtycker inte till att få förfrågningar om att recensera webbutiken och dess produkter'
+    }, {
+      pattern: /Chat/gi,
+      replacement: 'Chatt'
     },
     {
       pattern: /I do not consent to receiving request to review online store and its products/gi,
