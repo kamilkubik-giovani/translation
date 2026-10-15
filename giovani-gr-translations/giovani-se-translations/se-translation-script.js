@@ -7,6 +7,7 @@
   const translations = {
     "My personal details": "Mina personuppgifter",
     'Buy for': 'Köp för',
+    'Chat': 'Chatt',
     'and get': 'och få',
     'free shipping!': 'fri frakt!',
     "My orders": "Mina beställningar",
