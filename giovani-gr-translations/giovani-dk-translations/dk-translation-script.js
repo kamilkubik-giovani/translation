@@ -142,6 +142,8 @@
     'login to my account': 'Log ind på min konto',
     'full name': 'Fulde navn',
     'city': 'By',
+    ' Lynlås': 'By',
+   
     'ship to another address': 'Send til en anden adresse',
     'enter note for vendor': 'Skriv en note til sælgeren',
     'your receipt': 'Din kvittering',
@@ -256,6 +258,8 @@
     'close': 'Luk',
     'yes': 'Ja',
     'no': 'Nej',
+     'Lynlås': 'Postnummer',
+  
 
     'My order': 'Min ordre',
     'View order details': 'Se ordreoplysninger',
